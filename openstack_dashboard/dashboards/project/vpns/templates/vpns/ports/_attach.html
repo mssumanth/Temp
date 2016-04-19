@@ -1,0 +1,24 @@
+{% extends "horizon/common/_modal_form.html" %}
+{% load i18n %}
+
+{% block form_id %}attach_port_form{% endblock %}
+{% block form_action %}{% url horizon:project:vpns:ports:attach_port params.elasticnet_id params.port_id %}{% endblock %}
+
+{% block modal-header %}Attach Port{% endblock %}
+
+{% block modal-body %}
+<div class="left">
+    <fieldset>
+        {% include "horizon/common/_form_fields.html" %}
+    </fieldset>
+</div>
+<div class="right">
+    <h3>{% trans "Description" %}:</h3>
+    <p>{% trans "Select an instance with a free interface to attach this port." %}</p>
+</div>
+{% endblock %}
+
+{% block modal-footer %}
+  <input class="btn btn-primary pull-right" type="submit" value="{% trans "Attach Port" %}" />
+  <a href="{% url horizon:project:vpns:ports:ports params.elasticnet_id %}" class="btn secondary cancel close">{% trans "Cancel" %}</a>
+{% endblock %}

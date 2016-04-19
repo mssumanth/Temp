@@ -1,0 +1,13 @@
+{% extends 'base.html' %}
+{% load i18n %}
+{% block title %}Add Gateways{% endblock %}
+
+{% block page_header %}
+  {% include "horizon/common/_page_header.html" with title=_("Add Gateways") %}
+{% endblock page_header %}
+
+{% block main %}
+  {% include "project/ipsec/_addgws.html" %}
+{% endblock %}
+
+

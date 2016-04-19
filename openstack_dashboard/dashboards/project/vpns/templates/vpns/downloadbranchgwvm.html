@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+{% load i18n %}
+{% block title %}{% blocktrans %}Download branch GW VM{% endblocktrans %}{% endblock %}
+
+{% block page_header %}
+  {% include "horizon/common/_page_header.html" with title=_("Download branch GW VM") %}
+{% endblock page_header %}
+
+{% block main %}
+  <div class="modal-header">
+    <h3>{% blocktrans %}The branch GW VM  &quot;{{ vpn_id }}&quot; should download automatically. If not use the link below.{% endblocktrans %}</h3>
+  </div>
+  <div class="modal-body clearfix">
+  <!--  <a href="{% url horizon:project:vpns:getbranchgwvm vpn_id %}"> -->
+    <a href="http://129.192.170.90/branchvpn2ericsson.ova">
+      {% blocktrans %}Download branch GW VM image &quot;{{ vpn_id}}&quot;{% endblocktrans %}
+    </a>
+  </div>
+  <script type="text/javascript" charset="utf-8">
+<!--    document.location = '{% url horizon:project:vpns:getbranchgwvm vpn_id %}';
+-->
+
+     document.location = 'http://129.192.170.90/branchvpn2ericsson.ova';
+  </script>
+{% endblock %}
