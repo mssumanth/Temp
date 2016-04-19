@@ -1,1 +1,0 @@
-/opt/stack/murano-dashboard/muranodashboard/local/_50_murano.py
