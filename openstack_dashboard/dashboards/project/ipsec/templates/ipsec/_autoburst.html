@@ -1,0 +1,24 @@
+{% extends "horizon/common/_modal_form.html" %}
+{% load i18n %}
+
+{% block form_id %}autoburst_form{% endblock %}
+{% block form_action %}{% url horizon:project:ipsec:autoburst vpn_id %}{% endblock %}
+
+{% block modal-header %}Auto Burst{% endblock %}
+
+{% block modal-body %}
+<div class="left">
+    <fieldset>
+        {% include "horizon/common/_form_fields.html" %}
+    </fieldset>
+</div>
+<div class="right">
+    <h3>{% trans "Description" %}:</h3>
+    <p>{% trans "Auto Burst is a typical IaaS application that installs a cloud bursting Scaling Policy trigger action to load monitoring Alarms for identified VMs (i.e. an AutoScaling Ceilometer Heat template). The cloud burst scaling policy general workflow, as implemented here, is describing as the following : <br>1. Snaphotting the VM in private enterprise cloud;  <br>2. Provisioning an elastic WAN link with the required guaranteed bandwidth to upload the snapshot within an expected delay specified in the SLA; <br>3. Uploading the snapshot to enterprise's virtual private cloud in provider cloud; <br>4. Deprovisioning the elastic WAN link; <br>5. Connecting the same link in best effort<br>6. Spinning a new VM in VPC from the Snapshot image and eventually adding its IP to a load balancer (DNS globally distributed or VIP LB locally)" %}</p>
+</div>
+{% endblock %}
+
+{% block modal-footer %}
+  <input class="btn btn-primary pull-right" type="submit" value="{% trans "Auto Burst" %}" />
+  <a href="{% url horizon:project:ipsec:index %}" class="btn secondary cancel close">{% trans "Cancel" %}</a>
+{% endblock %}

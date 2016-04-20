@@ -22,7 +22,11 @@ from muranodashboard import api
 from muranodashboard.common import utils
 from muranodashboard.environments import consts
 from muranodashboard.environments import topology
+from muranodashboard.catalog import flotilla_restful as flo_api
+from copy import deepcopy
 
+import json
+import requests
 
 LOG = logging.getLogger(__name__)
 
@@ -158,6 +162,7 @@ def _update_env(env):
     env.has_new_services = False
     if env.services:
         for service in env.services:
+	    LOG.debug("Service in _update_env: {0}".format(service))
             if service['?']['status'] == 'pending':
                 env.has_new_services = True
 
@@ -206,10 +211,14 @@ def environment_get(request, environment_id):
     if acquired and acquired != session_id:
         env = client.environments.get(environment_id, acquired)
         Session.set(request, environment_id, acquired)
-
     env = _update_env(env)
-
+    if env.status == 'pending' or env.status == 'deploying':
+        env.status = 'ready'	
     LOG.debug('Environment::Get {0}'.format(env))
+    headers = {'content-type': 'application/json'}
+    url = 'http://127.0.0.1:7007/display_service'
+    responses = requests.get(url, verify=False, headers = headers)
+    LOG.debug("Responses in getVPNList: {0}".format(responses.json()))
     return env
 
 
@@ -219,6 +228,7 @@ def environment_deploy(request, environment_id):
     env = api.muranoclient(request).sessions.deploy(environment_id, session_id)
     LOG.debug('Environment::Deploy <EnvId: {0}, SessionId: {1}>'
               ''.format(environment_id, session_id))
+    
     return env
 
 
@@ -230,7 +240,6 @@ def action_allowed(request, environment_id):
     env = environment_get(request, environment_id)
     status = getattr(env, 'status', None)
     return status not in ('deploying',)
-
 
 def services_list(request, environment_id):
     """Get environment applications.
@@ -279,8 +288,7 @@ def services_list(request, environment_id):
             service_data['name'] = service_data['?']['name']
 
         services.append(service_data)
-
-    LOG.debug('Service::List')
+    LOG.debug('Service::List {0}'.format(services))
     return [utils.Bunch(**service) for service in services]
 
 
@@ -297,24 +305,58 @@ def service_create(request, environment_id, parameters):
     # if we what add new services to this environment
     session_id = Session.get_or_create_or_delete(request, environment_id)
     LOG.debug('Service::Create {0}'.format(parameters['?']['type']))
-    return api.muranoclient(request).services.post(environment_id,
+    LOG.debug("REQUEST: {0}".format(request))
+    url = ""
+    branch = ""
+    name = ""
+    if 'url' in parameters.keys():
+        url = parameters['url']
+    if 'branchName' in parameters.keys():
+        branch = parameters['branchName']
+    if 'name' in parameters.keys():
+        name = parameters['name']
+    service={}
+    service['name']=name
+    service['url']=url
+    service['branchName']=branch
+    api.muranoclient(request).services.post(environment_id,
                                                    path='/',
                                                    data=parameters,
                                                    session_id=session_id)
+    return flo_api.deployApp(service)
 
 
 def service_delete(request, environment_id, service_id):
     LOG.debug('Service::Delete <SrvId: {0}>'.format(service_id))
+    service = service_get(request, environment_id, service_id)
+    srv_name = service.__getitem__('name')
+    image = service.__getitem__('url')
     session_id = Session.get_or_create_or_delete(request, environment_id)
-    return api.muranoclient(request).services.delete(environment_id,
+    client = api.muranoclient(request)
+    env = client.environments.get(environment_id, session_id)
+    acquired = getattr(env, 'acquired_by', None)
+    if acquired and acquired != session_id:
+        env = client.environments.get(environment_id, acquired)
+        Session.set(request, environment_id, acquired)
+
+    env = _update_env(env)
+    branch = env.name
+    LOG.debug('Environment::Get in service_delete {0}'.format(env))
+    api.muranoclient(request).services.delete(environment_id,
                                                      '/' + service_id,
                                                      session_id)
-
+    app={}
+    app['vnf_name']=srv_name
+    app['branch_name']=branch
+    app['url']=image
+    app['tenant_name']="T-Labs:Mtn-Vw"
+    return flo_api.deleteApp(app)
 
 def service_get(request, environment_id, service_id):
     services = services_list(request, environment_id)
     LOG.debug("Return service detail for a specified id")
     for service in services:
+        LOG.debug("Service: {0}".format(service))
         if service['?']['id'] == service_id:
             return service
 

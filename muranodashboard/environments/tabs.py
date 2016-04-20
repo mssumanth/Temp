@@ -14,8 +14,8 @@
 
 from collections import OrderedDict
 import json
+import random
 
-from django.conf import settings
 from django.core.urlresolvers import reverse
 from django.utils.translation import ugettext_lazy as _
 from horizon import exceptions
@@ -30,7 +30,7 @@ from muranodashboard.environments import tables
 
 
 class OverviewTab(tabs.Tab):
-    name = _("Component")
+    name = _("Service")
     slug = "_service"
     template_name = 'services/_overview.html'
 
@@ -191,6 +191,12 @@ class EnvironmentTopologyTab(tabs.Tab):
         context['d3_data'] = d3_data
         return context
 
+class Service:
+    def __init__(self, name, services, id=random.randint(1,1000000)):
+        self.id = id
+        #= random.randint(1,1000000)
+        self.vnf_name = name
+	self.vnf_services = services
 
 class EnvironmentServicesTab(tabs.TableTab):
     name = _("Components")
@@ -205,6 +211,15 @@ class EnvironmentServicesTab(tabs.TableTab):
         ns_url = "horizon:murano:environments:index"
         try:
             services = api.services_list(self.request, self.environment_id)
+            '''headers = {'content-type': 'application/json'}
+            url = 'http://127.0.0.1:7007/display_service'
+            responses = requests.get(url, verify=False, headers = headers)
+            rsp = []
+            for response in responses.json():
+                rsp.append(Service(response['vnf_name'],
+                        response['vnf_services'],
+                        response['id']))
+            return rsp'''
         except exc.HTTPForbidden:
             msg = _('Unable to retrieve list of services. This environment '
                     'is deploying or already deployed by other user.')
@@ -217,15 +232,18 @@ class EnvironmentServicesTab(tabs.TableTab):
                               redirect=reverse(ns_url))
         except exc.HTTPUnauthorized:
             exceptions.handle(self.request)
+        '''except:
+            #exceptions.handle(self.request, _('Unable to get providers'))
+            entry = {
+                    "vnf_name" : "dt100",
+                    "vnf_services" : [{"image": "docker.io/glanf/firewall", "name": "fw18"}],
+		    "?":{"id": 10021}
+                    }
+            rsp=[]
+            rsp.append(entry)
+            return rsp'''
 
         return services
-
-    def get_context_data(self, request, **kwargs):
-        context = super(EnvironmentServicesTab,
-                        self).get_context_data(request, **kwargs)
-        context['MURANO_USE_GLARE'] = getattr(settings, 'MURANO_USE_GLARE',
-                                              False)
-        return context
 
 
 class DeploymentTab(tabs.TableTab):

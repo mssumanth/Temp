@@ -19,7 +19,7 @@ from muranodashboard import dashboard
 
 
 class Environments(horizon.Panel):
-    name = _("Environments")
+    name = _("Instances")
     slug = 'environments'
 
 

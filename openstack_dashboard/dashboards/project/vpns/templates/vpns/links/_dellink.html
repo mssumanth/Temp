@@ -1,0 +1,25 @@
+{% extends "horizon/common/_modal_form.html" %}
+{% load i18n %}
+
+{% block form_id %}del_link_form{% endblock %}
+{% block form_action %}{% url horizon:project:vpns:links:dellink vpn_id link_id %}{% endblock %}
+
+{% block modal-header %}Disconnect Link{% endblock %}
+
+{% block modal-body %}
+<div class="left">
+    <fieldset>
+        {% include "horizon/common/_form_fields.html" %}
+    </fieldset>
+    <p>{% trans "Are you sure you want to disconnect this link?" %} </p>
+</div>
+<div class="right">
+    <h3>{% trans "Warning" %}:</h3>
+    <p>{% trans "Detaching it could remove all elasticnet connectivity." %}</p>
+</div>
+{% endblock %}
+
+{% block modal-footer %}
+  <input class="btn btn-primary pull-right" type="submit" value="{% trans "Disconnect Link" %}" />
+  <a href="{% url horizon:project:vpns:links:links vpn_id %}" class="btn secondary cancel close">{% trans "Cancel" %}</a>
+{% endblock %}

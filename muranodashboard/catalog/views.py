@@ -176,27 +176,15 @@ def update_latest_apps(func):
     return __inner
 
 
-def cleaned_latest_apps(request):
-    """Returns a list of recently used apps
-
-    Verifies, that apps in the list are either public or belong to current
-    project.
-    """
-
+def clean_latest_apps(request):
     cleaned_apps, cleaned_app_ids = [], []
     for app_id in request.session.get('latest_apps', []):
         try:
-            # TODO(kzaitsev): we have to update this to 1 request per list of
-            # apps. Should be trivial and should remove the need to verify that
-            # apps are available. bug/1559066
             app = api.muranoclient(request).packages.get(app_id)
         except exc.HTTPNotFound:
-            continue
+            pass
         else:
-            if app.type != 'Application':
-                continue
-            if (app.owner_id == request.session['token'].project['id'] or
-                    app.is_public):
+            if app.type == 'Application':
                 cleaned_apps.append(app)
                 cleaned_app_ids.append(app_id)
     request.session['latest_apps'] = collections.deque(cleaned_app_ids)
@@ -585,7 +573,7 @@ class IndexView(list_view.ListView):
             'ALL_CATEGORY_NAME': ALL_CATEGORY_NAME,
             'categories': get_categories_list(self.request),
             'current_category': self.get_current_category(),
-            'latest_list': cleaned_latest_apps(self.request)
+            'latest_list': clean_latest_apps(self.request)
         })
 
         search = self.request.GET.get('search')
@@ -599,8 +587,6 @@ class IndexView(list_view.ListView):
         context['no_apps'] = True
         if self.get_current_category() != ALL_CATEGORY_NAME or search:
             context['no_apps'] = False
-        context['MURANO_USE_GLARE'] = getattr(settings, 'MURANO_USE_GLARE',
-                                              False)
         return context
 
 

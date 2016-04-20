@@ -1,0 +1,13 @@
+{% extends 'base.html' %}
+{% load i18n %}
+{% block title %}Create a Gateway{% endblock %}
+
+{% block page_header %}
+  {% include "horizon/common/_page_header.html" with title=_("Create Elasticnet") %}
+{% endblock page_header %}
+
+{% block main %}
+  {% include "project/vpns/_creategw.html" %}
+{% endblock %}
+
+

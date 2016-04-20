@@ -19,7 +19,6 @@ from django import http as django_http
 from django import shortcuts
 from django.template import defaultfilters
 from django.utils.translation import ugettext_lazy as _
-from django.utils.translation import ungettext_lazy
 
 from horizon import exceptions
 from horizon import forms
@@ -34,6 +33,7 @@ from muranodashboard.api import packages as pkg_api
 from muranodashboard.catalog import views as catalog_views
 from muranodashboard.environments import api
 from muranodashboard.environments import consts
+from muranodashboard.environments import forms as env_forms
 from muranodashboard.packages import consts as pkg_consts
 
 
@@ -50,7 +50,7 @@ def _get_environment_status_and_version(request, table):
 
 class AddApplication(tables.LinkAction):
     name = 'AddApplication'
-    verbose_name = _('Add Component')
+    verbose_name = _('Add Service')
     icon = 'plus'
 
     def allowed(self, request, environment):
@@ -67,7 +67,7 @@ class AddApplication(tables.LinkAction):
 
 class CreateEnvironment(tables.LinkAction):
     name = 'CreateEnvironment'
-    verbose_name = _('Create Environment')
+    verbose_name = _('Create Branch')
     url = 'horizon:murano:environments:create_environment'
     classes = ('btn-launch', 'add_env')
     redirect_url = "horizon:project:murano:environments"
@@ -80,7 +80,7 @@ class CreateEnvironment(tables.LinkAction):
         try:
             api.environment_create(request, environment)
         except Exception as e:
-            msg = (_('Unable to create environment {0}'
+            msg = (_('Unable to create branch{0}'
                      ' due to: {1}').format(environment, e))
             LOG.error(msg)
             redirect = reverse(self.redirect_url)
@@ -88,23 +88,10 @@ class CreateEnvironment(tables.LinkAction):
 
 
 class DeleteEnvironment(tables.DeleteAction):
+    data_type_singular = _('Branch')
+    data_type_plural = _('Branches')
+    action_past = _('Start Deleting')
     redirect_url = "horizon:project:murano:environments"
-
-    @staticmethod
-    def action_present(count):
-        return ungettext_lazy(
-            u"Delete Environment",
-            u"Delete Environments",
-            count
-        )
-
-    @staticmethod
-    def action_past(count):
-        return ungettext_lazy(
-            u"Start Deleting Environment",
-            u"Start Deleting Environments",
-            count
-        )
 
     def allowed(self, request, environment):
         if environment:
@@ -127,23 +114,11 @@ class AbandonEnvironment(tables.DeleteAction):
     help_text = _("This action cannot be undone. Any resources created by "
                   "this environment will have to be released manually.")
     name = 'abandon'
+    action_present = _('Abandon')
+    action_past = _('Abandoned')
+    data_type_singular = _('Branch')
+    data_type_plural = _('Branches')
     redirect_url = "horizon:project:murano:environments"
-
-    @staticmethod
-    def action_present(count):
-        return ungettext_lazy(
-            u"Abandon Environment",
-            u"Abandon Environments",
-            count
-        )
-
-    @staticmethod
-    def action_past(count):
-        return ungettext_lazy(
-            u"Abandoned Environment",
-            u"Abandoned Environments",
-            count
-        )
 
     def allowed(self, request, environment):
         """Limit when 'Abandon Environment' button is shown
@@ -169,22 +144,9 @@ class AbandonEnvironment(tables.DeleteAction):
 
 
 class DeleteService(tables.DeleteAction):
-
-    @staticmethod
-    def action_present(count):
-        return ungettext_lazy(
-            u"Delete Component",
-            u"Delete Components",
-            count
-        )
-
-    @staticmethod
-    def action_past(count):
-        return ungettext_lazy(
-            u"Start Deleting Component",
-            u"Start Deleting Components",
-            count
-        )
+    data_type_singular = _('Service')
+    data_type_plural = _('Services')
+    action_past = _('Start Deleting')
 
     def allowed(self, request, service=None):
         status, version = _get_environment_status_and_version(request,
@@ -193,6 +155,7 @@ class DeleteService(tables.DeleteAction):
 
     def action(self, request, service_id):
         try:
+            #svt = ServicesTable(self.table)
             environment_id = self.table.kwargs.get('environment_id')
             for service in self.table.data:
                 if service['?']['id'] == service_id:
@@ -207,23 +170,11 @@ class DeleteService(tables.DeleteAction):
 
 class DeployEnvironment(tables.BatchAction):
     name = 'deploy'
+    action_present = _('Deploy')
+    action_past = _('Deployed')
+    data_type_singular = _('Branch')
+    data_type_plural = _('Branches')
     classes = ('btn-launch',)
-
-    @staticmethod
-    def action_present(count):
-        return ungettext_lazy(
-            u"Deploy Environment",
-            u"Deploy Environments",
-            count
-        )
-
-    @staticmethod
-    def action_past(count):
-        return ungettext_lazy(
-            u"Deployed Environment",
-            u"Deployed Environments",
-            count
-        )
 
     def allowed(self, request, environment):
         """Limit when 'Deploy Environment' button is shown
@@ -235,17 +186,18 @@ class DeployEnvironment(tables.BatchAction):
           or successful deploy or delete failure)
         """
         status = getattr(environment, 'status', None)
-        if (status != consts.STATUS_ID_DEPLOY_FAILURE and
+        '''if (status != consts.STATUS_ID_DEPLOY_FAILURE and
                 not environment.has_new_services):
             return False
         if (status in consts.NO_ACTION_ALLOWED_STATUSES or
                 status == consts.STATUS_ID_READY):
-            return False
+            return False'''
         return True
 
     def action(self, request, environment_id):
         try:
-            api.environment_deploy(request, environment_id)
+            #api.environment_deploy(request, environment_id)
+	    pass
         except Exception:
             msg = _('Unable to deploy. Try again later')
             redirect = reverse('horizon:murano:environments:index')
@@ -254,7 +206,7 @@ class DeployEnvironment(tables.BatchAction):
 
 class DeployThisEnvironment(tables.Action):
     name = 'deploy_env'
-    verbose_name = _('Deploy This Environment')
+    verbose_name = _('Save the Network Functions')
     requires_input = False
     classes = ('btn-launch',)
 
@@ -269,20 +221,20 @@ class DeployThisEnvironment(tables.Action):
         """
         status, version = _get_environment_status_and_version(request,
                                                               self.table)
-        if (status in consts.NO_ACTION_ALLOWED_STATUSES or
+        '''if (status in consts.NO_ACTION_ALLOWED_STATUSES or
                 status == consts.STATUS_ID_READY):
             return False
 
         apps = self.table.data
         if version == 0 and not apps:
-            return False
+            return False'''
         return True
 
     def single(self, data_table, request, service_id):
         environment_id = data_table.kwargs['environment_id']
         try:
             api.environment_deploy(request, environment_id)
-            messages.success(request, _('Deploy started'))
+            messages.success(request, _('Saving'))
         except Exception:
             msg = _('Unable to deploy. Try again later')
             exceptions.handle(
@@ -295,7 +247,7 @@ class DeployThisEnvironment(tables.Action):
 
 class ShowEnvironmentServices(tables.LinkAction):
     name = 'show'
-    verbose_name = _('Manage Components')
+    verbose_name = _('Manage Services')
     url = 'horizon:murano:environments:services'
 
     def allowed(self, request, environment):
@@ -350,11 +302,14 @@ class UpdateName(tables.UpdateAction):
         return True
 
 
-class EnvironmentsTable(tables.DataTable):
+class BranchesTable(tables.DataTable):
     name = tables.Column('name',
                          link='horizon:murano:environments:services',
                          verbose_name=_('Name'),
-                         form_field=forms.CharField(),
+                         form_field=forms.CharField(
+                             validators=env_forms.NAME_VALIDATORS,
+                             error_messages={'invalid':
+                                             env_forms.ENV_NAME_HELP_TEXT},),
                          update_action=UpdateName,
                          truncate=40)
 
@@ -365,14 +320,16 @@ class EnvironmentsTable(tables.DataTable):
                            display_choices=consts.STATUS_DISPLAY_CHOICES)
 
     class Meta(object):
-        name = 'environments'
-        verbose_name = _('Environments')
+        name = 'murano'
+        verbose_name = _('Branches')
         template = 'environments/_data_table.html'
         row_class = UpdateEnvironmentRow
         status_columns = ['status']
-        no_data_message = _('NO ENVIRONMENTS')
+        no_data_message = _('NO BRANCHES')
         table_actions = (CreateEnvironment,)
-        row_actions = (ShowEnvironmentServices, DeployEnvironment,
+        #row_actions = (ShowEnvironmentServices, DeployEnvironment,
+        #               DeleteEnvironment, AbandonEnvironment)
+        row_actions = (ShowEnvironmentServices,
                        DeleteEnvironment, AbandonEnvironment)
         multi_select = False
 
@@ -390,24 +347,38 @@ class ServicesTable(tables.DataTable):
     name = tables.Column('name',
                          verbose_name=_('Name'),
                          link=get_service_details_link)
+    #name = tables.Column('name', verbose_name=_('Name'))
 
     _type = tables.Column(get_service_type,
                           verbose_name=_('Type'))
+    '''_type = tables.Column('type',
+                          verbose_name=_('Type'))'''
+
+    #url = tables.Column('URL', verbose_name=_('URL'))
 
     status = tables.Column(lambda datum: datum['?'].get('status'),
                            verbose_name=_('Status'),
                            status=True,
                            status_choices=consts.STATUS_CHOICES,
                            display_choices=consts.STATUS_DISPLAY_CHOICES)
-    operation = tables.Column('operation',
+    '''status = tables.Column('status',
+                           verbose_name=_('Status'),
+                           status=True,
+                           status_choices=consts.STATUS_CHOICES,
+                           display_choices=consts.STATUS_DISPLAY_CHOICES)'''
+	
+    '''operation = tables.Column('operation',
                               verbose_name=_('Last operation'),
                               filters=(defaultfilters.urlize, ))
     operation_updated = tables.Column('operation_updated',
                                       verbose_name=_('Time updated'),
-                                      filters=(filters.parse_isotime,))
+                                      filters=(filters.parse_isotime,))'''
 
     def get_object_id(self, datum):
-        return datum['?']['id']
+	if datum['?'].get('id'):
+            return datum['?']['id']
+        else:
+	    return random.randint(1,100000)
 
     def get_apps_list(self):
         packages = []
@@ -455,7 +426,7 @@ class ServicesTable(tables.DataTable):
                 bound_action.bound_url = bound_action.get_link_url(datum)
             app_actions.append(bound_action)
         if app_actions:
-            # Show native actions first (such as "Delete Component") and
+            # Show native actions first (such as "Delete Service") and
             # then add sorted application actions
             actions.extend(sorted(app_actions, key=lambda x: x.name))
         return actions
@@ -468,11 +439,13 @@ class ServicesTable(tables.DataTable):
 
     class Meta(object):
         name = 'services'
-        verbose_name = _('Component List')
-        no_data_message = _('No components')
+        verbose_name = _('Services List')
+        template = 'services/_data_table.html'
+        no_data_message = _('No services')
         status_columns = ['status']
         row_class = UpdateServiceRow
-        table_actions = (AddApplication, DeployThisEnvironment)
+        table_actions = (AddApplication, DeployThisEnvironment,)
+        #table_actions = (AddApplication, )
         row_actions = (DeleteService,)
         multi_select = False
 
@@ -508,6 +481,7 @@ class DeploymentsTable(tables.DataTable):
     class Meta(object):
         name = 'deployments'
         verbose_name = _('Deployments')
+        template = 'common/_data_table.html'
         row_actions = (ShowDeploymentDetails,)
 
 
@@ -523,4 +497,5 @@ class EnvConfigTable(tables.DataTable):
 
     class Meta(object):
         name = 'environment_configuration'
-        verbose_name = _('Deployed Components')
+        verbose_name = _('Deployed Services')
+        template = 'common/_data_table.html'

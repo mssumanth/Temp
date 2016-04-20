@@ -34,9 +34,8 @@ from muranodashboard.environments import tabs as env_tabs
 
 
 class IndexView(tables.DataTableView):
-    table_class = env_tables.EnvironmentsTable
+    table_class = env_tables.BranchesTable
     template_name = 'environments/index.html'
-    page_title = _("Environments")
 
     def get_data(self):
         environments = []
@@ -59,7 +58,6 @@ class IndexView(tables.DataTableView):
 class EnvironmentDetails(tabs.TabbedTableView):
     tab_group_class = env_tabs.EnvironmentDetailsTabs
     template_name = 'services/index.html'
-    page_title = '{{ environment_name }}'
 
     def get_context_data(self, **kwargs):
         context = super(EnvironmentDetails, self).get_context_data(**kwargs)
@@ -71,35 +69,20 @@ class EnvironmentDetails(tabs.TabbedTableView):
 
         except Exception:
             msg = _("Sorry, this environment doesn't exist anymore")
-            redirect = self.get_redirect_url()
+            redirect = reverse("horizon:murano:environments:index")
             exceptions.handle(self.request, msg, redirect=redirect)
         context['tenant_id'] = self.request.session['token'].tenant['id']
-        context["url"] = self.get_redirect_url()
-        table = env_tables.EnvironmentsTable(self.request)
-        # record the origin row_action for EnvironmentsTable Meta
-        ori_row_actions = table._meta.row_actions
-        # remove the duplicate 'Manage Components' and 'DeployEnvironment'
-        # actions that have already in Environment Details page
-        # from table.render_row_actions, so the action render to the detail
-        # page will exclude those two actions.
-        table._meta.row_actions = filter(
-            lambda x: x.name not in ('show', 'deploy'),
-            table._meta.row_actions)
-        context["actions"] = table.render_row_actions(env)
-        # recover the origin row_action for EnvironmentsTable Meta
-        table._meta.row_actions = ori_row_actions
         return context
 
     def get_tabs(self, request, *args, **kwargs):
         environment_id = self.kwargs['environment_id']
+        ns_url = "horizon:murano:environments:index"
         try:
             deployments = api.deployments_list(self.request,
                                                environment_id)
         except exc.HTTPException:
             msg = _('Unable to retrieve list of deployments')
-            exceptions.handle(self.request,
-                              msg,
-                              redirect=self.get_redirect_url())
+            exceptions.handle(self.request, msg, redirect=reverse(ns_url))
 
         logs = []
         if deployments:
@@ -110,30 +93,17 @@ class EnvironmentDetails(tabs.TabbedTableView):
         return self.tab_group_class(request, logs=logs,
                                     **kwargs)
 
-    @staticmethod
-    def get_redirect_url():
-        return reverse_lazy("horizon:murano:environments:index")
-
 
 class DetailServiceView(tabs.TabbedTableView):
     tab_group_class = env_tabs.ServicesTabs
     template_name = 'services/details.html'
-    page_title = '{{ service_name }}'
 
     def get_context_data(self, **kwargs):
         context = super(DetailServiceView, self).get_context_data(**kwargs)
-        service = self.get_data()
-        context["service"] = service
+        context["service"] = self.get_data()
         context["service_name"] = getattr(self.service, 'name', '-')
         env = api.environment_get(self.request, self.environment_id)
         context["environment_name"] = env.name
-        breadcrumb = [
-            (_("Environments"), EnvironmentDetails.get_redirect_url()),
-            (context["environment_name"],
-             reverse("horizon:murano:environments:services",
-                     args=[self.environment_id])),
-            (_('Applications'),), ]
-        context["custom_breadcrumb"] = breadcrumb
         return context
 
     def get_data(self):
@@ -164,9 +134,9 @@ class DetailServiceView(tabs.TabbedTableView):
 class CreateEnvironmentView(views.ModalFormView):
     form_class = env_forms.CreateEnvironmentForm
     form_id = 'create_environment_form'
-    modal_header = _('Create Environment')
+    modal_header = _('Create Branch')
     template_name = 'environments/create.html'
-    page_title = _('Create Environment')
+    page_title = _('Create Branch')
     context_object_name = 'environment'
     submit_label = _('Create')
     submit_url = reverse_lazy('horizon:murano:environments:create_environment')
@@ -191,7 +161,6 @@ class DeploymentDetailsView(tabs.TabbedTableView):
     tab_group_class = env_tabs.DeploymentDetailsTabs
     table_class = env_tables.EnvConfigTable
     template_name = 'deployments/reports.html'
-    page_title = 'Deployment at {{ deployment_start_time }}'
 
     def get_context_data(self, **kwargs):
         context = super(DeploymentDetailsView, self).get_context_data(**kwargs)
@@ -202,13 +171,6 @@ class DeploymentDetailsView(tabs.TabbedTableView):
             api.get_deployment_start(self.request,
                                      self.environment_id,
                                      self.deployment_id)
-        breadcrumb = [
-            (_("Environments"), EnvironmentDetails.get_redirect_url()),
-            (context["environment_name"],
-             reverse("horizon:murano:environments:services",
-                     args=[self.environment_id])),
-            (_('Deployments'),), ]
-        context["custom_breadcrumb"] = breadcrumb
         return context
 
     def get_deployment(self):

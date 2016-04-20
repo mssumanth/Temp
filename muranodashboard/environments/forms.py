@@ -13,6 +13,7 @@
 #    under the License.
 import ast
 
+from django.core import validators
 from django import forms
 from django.utils.translation import ugettext_lazy as _
 from horizon import exceptions
@@ -25,18 +26,21 @@ from muranodashboard.common import net
 from muranodashboard.environments import api
 
 LOG = logging.getLogger(__name__)
-ENV_NAME_HELP_TEXT = _("Environment name must contain at least one "
-                       "non-white space symbol.")
+NAME_VALIDATORS = [validators.RegexValidator('^[a-zA-Z]+[\w.-]*$')]
+ENV_NAME_HELP_TEXT = _("Environment names must contain only "
+                       "alphanumeric or '_-.' characters "
+                       "and must start with alpha")
 
 
 class CreateEnvironmentForm(horizon_forms.SelfHandlingForm):
-    name = forms.CharField(label=_("Environment Name"),
+    name = forms.CharField(label="Branch Name",
+                           validators=NAME_VALIDATORS,
+                           error_messages={'invalid': ENV_NAME_HELP_TEXT},
                            help_text=ENV_NAME_HELP_TEXT,
-                           max_length=255,
-                           required=True)
+                           max_length=255)
 
     net_config = forms.ChoiceField(
-        label=_("Environment Default Network"),
+        label=_("Branch Default Network"),
         required=True
     )
 
@@ -53,13 +57,6 @@ class CreateEnvironmentForm(horizon_forms.SelfHandlingForm):
         self.fields['net_config'].choices = net_choices
         self.fields['net_config'].help_text = help_text
 
-    def clean_name(self):
-        cleaned_data = super(CreateEnvironmentForm, self).clean()
-        env_name = cleaned_data.get('name')
-        if not env_name.strip():
-            self._errors['name'] = self.error_class([ENV_NAME_HELP_TEXT])
-        return env_name
-
     def handle(self, request, data):
         try:
             net_config = ast.literal_eval(data.pop('net_config'))
@@ -68,7 +65,7 @@ class CreateEnvironmentForm(horizon_forms.SelfHandlingForm):
             env = api.environment_create(request, data)
             request.session['env_id'] = env.id
             messages.success(request,
-                             u'Created environment "{0}"'.format(data['name']))
+                             'Created environment "{0}"'.format(data['name']))
             return True
         except exc.HTTPConflict:
             msg = _('Environment with specified name already exists')
@@ -77,7 +74,7 @@ class CreateEnvironmentForm(horizon_forms.SelfHandlingForm):
             messages.error(request, msg)
             return False
         except Exception:
-            msg = _('Failed to create environment')
+            msg = _('Failed to create branch')
             LOG.exception(msg)
             exceptions.handle(request)
             messages.error(request, msg)
